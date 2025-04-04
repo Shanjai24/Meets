@@ -8,13 +8,15 @@ const {
     templateList,
     searchTemplates,
     deleteTemplate,
-    getCategories
+    getCategories,
+    getUsers
 } = require('../controllers/templateController');
 const {
     verifyToken
 } = require('../controllers/meetingController');
 
 router.post('/create', verifyToken, createTemplate);
+router.get("/users", getUsers);
 router.get('/s', searchTemplates);
 router.get('/', getTemplates);
 router.get('/categories', getCategories);

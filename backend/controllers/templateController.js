@@ -81,6 +81,21 @@ const createTemplate = async (req, res) => {
     }
 };
 
+
+
+const getUsers = async (req, res) => {
+    try {
+      const [users] = await db.execute(
+        "SELECT username, role, department FROM users"
+      );
+  
+      res.status(200).json(users);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  };
+
 const deleteTemplate = async (req, res) => {
     const { id } = req.params;
 
@@ -495,5 +510,6 @@ module.exports = {
     templateList,
     searchTemplates,
     deleteTemplate,
-    getCategories
+    getCategories,
+    getUsers
 };
