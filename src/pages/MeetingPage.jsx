@@ -8,7 +8,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 
 import AttendanceIcon from "@mui/icons-material/HowToReg";
 import AgendaIcon from "@mui/icons-material/Groups";
-
+import ForwardingForm from "./MeetingPage2";
 import image from "../assets/bannariammanheader.png";
 import { useNavigate } from "react-router-dom";
 
@@ -19,6 +19,13 @@ export default function StartMeet( { handleBack}) {
     const navigate = useNavigate();
 
     const [selectedTab, setSelectedTab] = useState("attendance");
+    const [isForward, setIsForward] = useState(false);
+    const [selectedAction, setSelectedAction] = useState(null);
+
+    const handleForwardClick = (action) => {
+        setIsForward(true);
+        setSelectedAction(action);
+    };
 
 return (
         <Box>
@@ -375,7 +382,7 @@ return (
                                                                 backgroundColor: "#d4edda",
                                                             },
                                                         }}
-                                                        onClick={() => setStatus("Agree")}
+                                                        onClick={() => handleForwardClick("agree")}
                                                     >
                                                         Agree
                                                     </Button>
@@ -393,7 +400,7 @@ return (
                                                             fontSize:'10px',
                                                             gap:0.5,
                                                         }}
-                                                        onClick={() => setStatus("Forward")}
+                                                        onClick={() => handleForwardClick("forward")}
                                                     >
                                                         Forward
                                                     </Button>
@@ -414,7 +421,7 @@ return (
                                                                 backgroundColor: "#f8d7da",
                                                             },
                                                         }}
-                                                        onClick={() => setStatus("Not Agree")}
+                                                        onClick={() => handleForwardClick("notAgree")}
                                                     >
                                                         Not Agree
                                                     </Button>
@@ -527,6 +534,27 @@ return (
                             </TableBody>
                         </Table>
                         </TableContainer>
+                    )}
+                    {isForward && (
+                        <Box
+                            sx={{
+                                position: "fixed",
+                                top: 0,
+                                left: 0,
+                                width: "100vw",
+                                height: "100vh",
+                                backgroundColor: "rgba(0, 0, 0, 0.5)",
+                                display: "flex",
+                                justifyContent: "center",
+                                alignItems: "center",
+                                zIndex: 5,
+                            }}
+                            onClick={() => setIsForward(false)} // Close the form when clicking outside
+                        >
+                            <Box onClick={(e) => e.stopPropagation()}>
+                                <ForwardingForm onClose={() => setIsForward(false)} selectedAction={selectedAction} /> // Pass onClose and selectedAction props
+                            </Box>
+                        </Box>
                     )}
                 </Box>
             </Box>

@@ -14,7 +14,7 @@ const getCategories = async (req, res) => {
 }
 
 const createTemplate = async (req, res) => {
-    const {
+    const {cd,
         name,
         description,
         repeatType,
@@ -24,6 +24,7 @@ const createTemplate = async (req, res) => {
         points,
         roles,
         status,
+        dateTime,
     } = req.body;
 
     try {
@@ -32,8 +33,8 @@ const createTemplate = async (req, res) => {
         var createdBy = req.user.userId
 
         const [templateResult] = await db.query(
-            'INSERT INTO templates (name, description, repeat_type, priority_type, venue_id, ref_number, category_id, created_by, status, created_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [name, description, repeatType, priorityType, venueId, refNumber, categoryId, createdBy, status || 'Active', new Date()]
+            'INSERT INTO templates (name, description, repeat_type, priority_type, venue_id, ref_number, category_id, created_by, status, created_date, date_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [name, description, repeatType, priorityType, venueId, refNumber, categoryId, createdBy, status || 'Active', new Date(), dateTime || null]
         );
 
         const templateId = templateResult.insertId;
@@ -135,6 +136,7 @@ const getTemplates = async (req, res) => {
                 templates.status,
                 templates.created_date,
                 templates.updated_date,
+                templates.date_time,
                 venues.name AS venue_name,
                 categories.name AS category_name,
                 users.name AS created_by
@@ -229,6 +231,7 @@ const getTemplateById = async (req, res) => {
                 templates.status,
                 templates.created_date,
                 templates.updated_date,
+                templates.date_time,
                 venues.name AS venue_name,
                 categories.name AS category_name,
                 users.name AS created_by
@@ -308,27 +311,38 @@ const getTemplateById = async (req, res) => {
 
 
 const updateTemplate = async (req, res) => {
-    const {
-        id
-    } = req.params;
+    const { id } = req.params;
     const {
         name,
         description,
         repeatType,
         priorityType,
         venueId,
-        dateTime,
         categoryId,
         points,
         roles,
-        status
+        status,
+        dateTime,
     } = req.body;
 
     try {
-        // Update template details
+        // Check if the template exists
+        const [existingTemplate] = await db.query(
+            'SELECT id FROM templates WHERE id = ?',
+            [id]
+        );
+
+        if (existingTemplate.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Template not found'
+            });
+        }
+
+        // Update template
         await db.query(
-            'UPDATE templates SET name = ?, description = ?, repeat_type = ?, priority_type = ?, venue_id = ?, date_time = ?, category_id = ?, status = ?, updated_date = ? WHERE id = ?',
-            [name, description, repeatType, priorityType, venueId, dateTime, categoryId, status, new Date(), id]
+            'UPDATE templates SET name = ?, description = ?, repeat_type = ?, priority_type = ?, venue_id = ?, category_id = ?, status = ?, updated_date = ?, date_time = ? WHERE id = ?',
+            [name, description, repeatType, priorityType, venueId, categoryId, status, new Date(), dateTime || null, id]
         );
 
         // Delete existing points and roles
@@ -382,6 +396,7 @@ const templateList = async (req, res) => {
     try {
         const [templates] = await db.query(`
             SELECT 
+                t.id,
                 t.name,
                 c.name AS category_name,
                 t.created_date,
@@ -413,8 +428,6 @@ const templateList = async (req, res) => {
             message: 'Server error'
         });
     }
-
-
 };
 
 const searchTemplates = async (req, res) => {
@@ -429,6 +442,7 @@ const searchTemplates = async (req, res) => {
     // Initialize query and values array
     let query = `
         SELECT 
+            t.id,
             t.name,
             c.name AS category_name,
             t.created_date,
@@ -484,6 +498,34 @@ const searchTemplates = async (req, res) => {
     }
 };
 
+const getUsers = async (req, res) => {
+    try {
+      const [users] = await db.execute(
+        "SELECT id, name, role, department FROM users"
+      );
+  
+      res.status(200).json(users);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  };
+  
+const getVenue = async (req, res) => {
+    try {
+      const [venues] = await db.execute(
+        "SELECT * FROM venues"
+      );
+  
+      res.status(200).json(venues);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  };
+  
+
+
 
 
 
@@ -495,5 +537,7 @@ module.exports = {
     templateList,
     searchTemplates,
     deleteTemplate,
-    getCategories
+    getCategories,
+    getUsers,
+    getVenue
 };

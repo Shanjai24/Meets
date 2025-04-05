@@ -61,7 +61,7 @@ const DashboardRightPanel = () => {
 
   const handleTemplateSelect = (selectedTemplate) => {
     setShowCreateMeeting(false);
-    navigate('/template1', { state: { selectedTemplate } });
+    navigate('/cmeeting', { state: { selectedTemplate } });
   };
 
   const days = getCalendarDays(selectedDate);

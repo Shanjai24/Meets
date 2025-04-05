@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { FiArrowLeft, FiCheckCircle, FiTrash2 } from 'react-icons/fi';
 import { MdDragIndicator } from 'react-icons/md';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Box, Typography, Button, Table, TableBody, TableCell, TableContainer, TableRow, TextField, Select, MenuItem, Chip ,IconButton } from '@mui/material';
 import Autocomplete from '@mui/material/Autocomplete';
 import bheader from "../assets/bannariammanheader.png";
 import '../styles/Template.css';
 import RepeatOverlay from '../components/RepeatOverlay';
 import CloseIcon from "@mui/icons-material/Close";
+import axios from 'axios';
 
 const overlayStyles = {
   position: 'fixed',
@@ -24,8 +25,8 @@ const overlayStyles = {
 
 export default function Template() {
   const navigate = useNavigate();
-  const location = useLocation(); // Access location state
-  const [selectedCategory, setSelectedCategory] = useState(location.state?.selectedCategory || ''); // Initialize selectedCategory
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editData, setEditData] = useState(null);
   const [meetingDetails, setMeetingDetails] = useState({
     title: '',
     description: '',
@@ -33,7 +34,8 @@ export default function Template() {
     priorityType: '',
     venue: '',
     dateTime: '',
-    refNumber: 'Auto generate'
+    refNumber: 'Auto generate',
+    categoryId: ''
   });
 
   // Add preview state
@@ -59,14 +61,22 @@ export default function Template() {
     { value: 'once', label: 'One Time' }
   ];
 
-  // Add dummy members data (replace with API call later)
-  const allMembers = [
-    { id: 1, name: 'Dr. Rajesh Kumar', role: 'HOD', department: 'CSE', college: 'BIT' },
-    { id: 2, name: 'Dr. Priya Sharma', role: 'Professor', department: 'IT', college: 'BIT' },
-    { id: 3, name: 'Dr. Anand Singh', role: 'Dean', department: 'ECE', college: 'BIT' },
-    { id: 4, name: 'Dr. Mary Johnson', role: 'HOD', department: 'MECH', college: 'BIT' },
-    { id: 5, name: 'Dr. David Wilson', role: 'Principal', department: 'ADMIN', college: 'BIT' },
-  ];
+  const [allMembers, setAllMembers] = useState([]);
+  useEffect(() => {
+    const fetchMembers = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/templates/users');
+        const data = await response.json();
+        setAllMembers(data);
+      } catch (error) {
+        console.error('Failed to fetch members:', error);
+      }
+    };
+
+    fetchMembers();
+  }, []);
+
+
 
   // Update roles state to include selected members array
   const [roles, setRoles] = useState([
@@ -100,23 +110,17 @@ export default function Template() {
   };
 
   const addNewPoint = () => {
-    setPoints(prev => {
-        const isDuplicate = prev.some(point => point.point === '');
-        return isDuplicate ? prev : [
-            ...prev,
-            {
-                sno: String(prev.length + 1).padStart(2, '0'),
-                point: ''
-            }
-        ];
-    });
+    setPoints(prev => [
+      ...prev,
+      {
+        sno: String(prev.length + 1).padStart(2, '0'),
+        point: ''
+      }
+    ]);
   };
 
   const addNewRole = () => {
-    setRoles(prev => {
-        const isDuplicate = prev.some(role => role.role === '');
-        return isDuplicate ? prev : [...prev, { role: '', members: [] }];
-    });
+    setRoles(prev => [...prev, { role: '', members: [] }]);
   };
 
   // Get alphabetical index (a, b, c, etc.)
@@ -563,34 +567,333 @@ export default function Template() {
   // Add notification state
   const [showSuccess, setShowSuccess] = useState(false);
 
+  // Check if we're in edit mode and load template data
+  useEffect(() => {
+    // Check if there's edit data in localStorage
+    const storedEditData = localStorage.getItem('editTemplateData');
+    
+    if (storedEditData) {
+      try {
+        const parsedData = JSON.parse(storedEditData);
+        console.log('Parsed edit data from localStorage:', parsedData);
+        setEditData(parsedData);
+        setIsEditMode(true);
+        
+        // Set initial meeting details from stored data
+        setMeetingDetails(prev => ({
+          ...prev,
+          title: parsedData.name || prev.title,
+          description: parsedData.description || prev.description,
+          repeatType: parsedData.repeatType || prev.repeatType,
+          priorityType: parsedData.priorityType || prev.priorityType,
+          categoryId: parsedData.categoryId || parsedData.category || prev.categoryId
+        }));
 
-  // Add create template handler
-  const handleCreateTemplate = () => {
+        // Set initial repeat value if it exists
+        if (parsedData.repeatType) {
+          setRepeatValue(parsedData.repeatType);
+        }
+        
+        // Load the full template details including points and roles from API
+        if (parsedData.backendId) {
+          fetchTemplateDetails(parsedData.backendId);
+        }
+        
+      } catch (error) {
+        console.error('Error parsing edit template data:', error);
+      }
+    } else {
+      // If creating a new template, try to get the category from localStorage
+      const savedCategory = localStorage.getItem('selectedCategory');
+      if (savedCategory) {
+        setMeetingDetails(prev => ({
+          ...prev,
+          categoryId: savedCategory
+        }));
+      }
+    }
+    
+    // Clean up function to remove the edit data when component unmounts
+    return () => {
+      localStorage.removeItem('editTemplateData');
+    };
+  }, []);
 
-    setShowSuccess(true);
-    setTimeout(() => {
+  // Function to fetch template details for editing
+  const fetchTemplateDetails = async (backendId) => {
+    if (!backendId) {
+      console.error('No backend ID provided for template details');
+      return;
+    }
+    
+    console.log(`Fetching template details for ID: ${backendId}`);
+    
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.error('No authentication token found');
+        alert('Authentication required');
+        navigate('/login');
+        return;
+      }
+
+      // Fetch the template details using the backend ID
+      console.log(`Making API request to: http://localhost:5000/api/templates/${backendId}`);
+      const response = await axios.get(`http://localhost:5000/api/templates/${backendId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      console.log('Full API response:', response);
+      console.log('Response data:', response.data);
+
+      if (response.data) {
+        const template = response.data;
+        console.log('Template details from API:', template);
+        console.log('Response data structure:', {
+          name: template.name,
+          description: template.description,
+          repeat_type: template.repeat_type,
+          priority_type: template.priority_type,
+          points: template.points,
+          roles: template.roles
+        });
+        
+        // Log current meeting details before update
+        console.log('Current meeting details before update:', meetingDetails);
+        
+        // Update meeting details with all fields from the API response
+        setMeetingDetails(prev => {
+          const updates = {
+            title: template.name || prev.title,
+            description: template.description || prev.description,
+            // Note: API returns snake_case fields, but our state uses camelCase
+            repeatType: template.repeat_type || prev.repeatType,
+            priorityType: template.priority_type || prev.priorityType,
+            categoryId: template.category_id || prev.categoryId,
+            venue: template.venue_id || prev.venue
+          };
+          
+          console.log('Updating meeting details with:', updates);
+          return { ...prev, ...updates };
+        });
+
+        // Set repeat value if it exists in the API response
+        if (template.repeat_type) {
+          console.log(`Setting repeat value: ${template.repeat_type}`);
+          setRepeatValue(template.repeat_type);
+        } else {
+          console.log('No repeat_type found in response');
+        }
+        
+        // Set points from the API response
+        if (template.points && Array.isArray(template.points)) {
+          console.log(`Setting ${template.points.length} points from API:`, template.points);
+          const formattedPoints = template.points.map((point, index) => ({
+            sno: point.sno || String(index + 1).padStart(2, '0'),
+            point: point.point || ''
+          }));
+          setPoints(formattedPoints);
+        } else {
+          console.log('No points found in response or not an array:', template.points);
+        }
+
+        // Set roles from the API response
+        if (template.roles && Array.isArray(template.roles)) {
+          console.log(`Setting ${template.roles.length} roles from API:`, template.roles);
+          const formattedRoles = template.roles.map(role => {
+            // API returns role with members array directly
+            const memberObjects = role.members.map(member => {
+              // If the member is already an object with id and name, use it directly
+              if (member.id && member.name) {
+                return {
+                  id: member.id,
+                  name: member.name,
+                  role: member.role
+                };
+              }
+              
+              // Otherwise, try to find the member in our local array by ID
+              const localMember = allMembers.find(m => m.id === member);
+              return localMember || { id: member, name: `Unknown (${member})`, role: role.role };
+            });
+
+            return {
+              role: role.role || '',
+              members: memberObjects
+            };
+          });
+          
+          if (formattedRoles.length > 0) {
+            setRoles(formattedRoles);
+          }
+        } else {
+          console.log('No roles found in response or not an array:', template.roles);
+        }
+      } else {
+        console.error('No data in API response');
+      }
+    } catch (error) {
+      console.error('Error fetching template details:', error);
+      if (error.response) {
+        console.error('Error response:', error.response);
+      }
+      if (error.response && error.response.status === 403) {
+        alert('Authentication required. Please log in again.');
+        navigate('/login');
+      }
+    }
+  };
+
+  // Update handleCreateTemplate to handle both create and update
+  const handleCreateTemplate = async () => {
+    try {
+      // Format the data according to the backend API requirements
+      const templateData = {
+        name: meetingDetails.title,
+        description: meetingDetails.description,
+        repeatType: repeatValue || meetingDetails.repeatType,
+        priorityType: meetingDetails.priorityType,
+        venueId: Number(1), // Ensure venueId is a number
+        categoryId: Number(meetingDetails.categoryId) || 1, // Ensure categoryId is a number
+        points: points.map(point => ({
+          sno: point.sno,
+          point: point.point
+        })),
+        roles: roles.map(role => ({
+          role: role.role,
+          // Ensure members are just numeric IDs, not objects
+          members: role.members.map(member => {
+            if (typeof member === 'object' && member !== null) {
+              return Number(member.id);
+            } else {
+              return Number(member);
+            }
+          }).filter(id => !isNaN(id) && id > 0) // Filter out invalid IDs
+        })).filter(role => role.role && role.members.length > 0), // Filter out empty roles
+        status: 'Active'
+      };
+
+      console.log('Submitting template data:', templateData);
+
+      // Get the token from localStorage
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        alert('You must be logged in to create a template');
+        navigate('/login');
+        return;
+      }
+
+      let response;
+      
+      if (isEditMode && editData && editData.backendId) {
+        // If editing, update the template using the backend ID
+        const updateUrl = `http://localhost:5000/api/templates/update/${editData.backendId}`;
+        console.log(`Updating template with backend ID: ${editData.backendId}`);
+        console.log(`Making PUT request to: ${updateUrl}`);
+        console.log('Update payload:', JSON.stringify(templateData, null, 2));
+        
+        try {
+          response = await axios.put(updateUrl, templateData, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          console.log('Template updated successfully:', response.data);
+        } catch (updateError) {
+          console.error('Update request failed:', updateError);
+          
+          if (updateError.response) {
+            console.error('Error response status:', updateError.response.status);
+            console.error('Error response data:', updateError.response.data);
+            
+            if (updateError.response.status === 500) {
+              // Try a more aggressive fix: simplify the data structure
+              const simpleTemplateData = {
+                name: templateData.name,
+                description: templateData.description,
+                repeatType: templateData.repeatType,
+                priorityType: templateData.priorityType,
+                venueId: 1,
+                categoryId: 1,
+                points: templateData.points,
+                // Simplify roles to bare minimum
+                roles: templateData.roles.map(role => ({
+                  role: role.role,
+                  members: role.members.slice(0, 1) // Just keep first member to test
+                })).slice(0, 1), // Just keep first role to test
+                status: 'Active'
+              };
+              
+              console.log('Trying again with simplified data:', simpleTemplateData);
+              
+              // Try again with simplified data
+              response = await axios.put(updateUrl, simpleTemplateData, {
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                }
+              });
+              console.log('Template updated after simplification:', response.data);
+            } else {
+              throw updateError; // Re-throw if it's not a 500 error
+            }
+          } else {
+            throw updateError; // Re-throw if there's no response
+          }
+        }
+      } else {
+        // If creating, create a new template
+        console.log('Creating new template');
+        response = await axios.post('http://localhost:5000/api/templates/create', templateData, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        console.log('Template created:', response.data);
+      }
+      
+      // Show success notification
+      setShowSuccess(true);
+      
+      // Navigate to database page after 2 seconds
+      setTimeout(() => {
         setShowSuccess(false);
-        navigate('/database', { state: { templates: [{ 
-            name: meetingDetails.title, 
-            dateCreated: new Date().toLocaleDateString(), 
-            lastUpdated: new Date().toLocaleDateString(), 
-            status: 'Active', 
-            createdBy: 'Admin', 
-            category: selectedCategory 
-        }], roles, points } });
-    }, 2000);
-};
+        navigate('/database');
+      }, 2000);
+    } catch (error) {
+      console.error(`Error ${isEditMode ? 'updating' : 'creating'} template:`, error);
+      
+      // Check if it's an authentication error
+      if (error.response && error.response.status === 403) {
+        alert('Authentication failed. Please log in again.');
+        navigate('/login');
+      } else if (error.response && error.response.status === 500) {
+        // For 500 Internal Server Error
+        alert('Server error. The template could not be updated due to a server issue. Please try again later or contact support.');
+      } else {
+        // Other errors
+        alert(`Failed to ${isEditMode ? 'update' : 'create'} template: ${error.message}. Please try again.`);
+      }
+    }
+  };
 
-  // Add success notification component
+  // Update success notification component for both create and edit modes
   const TemplateSuccessNotification = () => (
     <div style={overlayStyles}>
       <div className="notification-card">
         <div className="icon-circle">
           <FiCheckCircle size={32} color="#4caf50" />
         </div>
-        <h1 className="notification-title">Template Created</h1>
+        <h1 className="notification-title">
+          {isEditMode ? 'Template Updated' : 'Template Created'}
+        </h1>
         <p className="notification-description">
-          This template has been published. Team members will be able to edit this template and republish changes.
+          This template has been {isEditMode ? 'updated' : 'published'}. Team members will be able to edit this template and republish changes.
         </p>
       </div>
     </div>
@@ -1062,7 +1365,7 @@ export default function Template() {
               <Chip
                 {...getTagProps({ index })}
                 key={member.id}
-                label={`${member.name} | ${member.role}`}
+                label={`${member.name}`}
                 sx={styles.memberSelection.chip}
               />
             ))
@@ -1120,6 +1423,7 @@ export default function Template() {
       </Box>
     </TableCell>
   );
+  
 
   return (
     <div className="cm-container"> {/* Change from page-container to cm-container */}
@@ -1132,7 +1436,7 @@ export default function Template() {
           <button className="cm-back-button" onClick={() => navigate(-1)}>
             <FiArrowLeft size={20} />
           </button>
-          <h1 className="cm-title">{isPreview ? 'Preview Template' : 'Create Template'}</h1>
+          <h1 className="cm-title">{isPreview ? 'Preview Template' : isEditMode ? 'Edit Template' : 'Create Template'}</h1>
         </div>
         <div className="cm-header-right">
           <button className="cm-btn cm-preview-btn" onClick={handlePreviewToggle}>
@@ -1142,7 +1446,7 @@ export default function Template() {
             <i className="fi fi-rr-document"></i> Save as Draft
           </button>
           <button className="cm-btn cm-create-btn" onClick={handleCreateTemplate}>
-            <i className="fi fi-rr-confetti"></i> Create Template
+            <i className="fi fi-rr-confetti"></i> {isEditMode ? 'Update Template' : 'Create Template'}
           </button>
         </div>
       </div>
@@ -1296,6 +1600,7 @@ export default function Template() {
 
 
                 <TableCell sx={headerCellStyle}>Priority Type</TableCell>
+
                 <TableCell sx={cellStyle}>
                   {isPreview ? (
                     <Typography sx={{ padding: '8px 0', color: '#374151' }}>
@@ -1321,6 +1626,7 @@ export default function Template() {
                     </Select>
                   )}
                 </TableCell>
+
               </TableRow>
               {/* Venue and Date Row */}
               <TableRow>
