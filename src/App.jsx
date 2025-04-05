@@ -12,6 +12,7 @@ import Template from './pages/Template';
 import Template1 from "./components/template1";
 import Reports from './pages/Reports'; 
 import Calendar from './components/Calendar';
+import Cmeeting from './components/template1';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -45,9 +46,10 @@ function App() {
                   <Route path="/meeting" element={<MeetingPage />} />
                   <Route path="/database" element={<Database />} />
                   <Route path="/template" element={<Template />} />
+                  <Route path="/template/edit/:templateId" element={<Template />} />
                   <Route path="/template1" element={<Template1 />} />
-                  <Route path="/reports" element={<Reports />} /> {/* Update this line */}
-                  <Route path="/notifications" element={<div>Notifications</div>} />
+                  <Route path="/cmeeting" element={<Cmeeting />} />
+                  <Route path="/reports" element={<Reports />} />
                   <Route path="/support" element={<div>Support</div>} />
                   <Route path="/logout" element={<div>Logout</div>} />
                   <Route path="*" element={<Navigate to="/dashboard" replace />} />

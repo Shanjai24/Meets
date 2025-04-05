@@ -9,7 +9,8 @@ const {
     searchTemplates,
     deleteTemplate,
     getCategories,
-    getUsers
+    getUsers,
+    getVenue
 } = require('../controllers/templateController');
 const {
     verifyToken
@@ -17,6 +18,7 @@ const {
 
 router.post('/create', verifyToken, createTemplate);
 router.get("/users", getUsers);
+router.get("/venues", getVenue);
 router.get('/s', searchTemplates);
 router.get('/', getTemplates);
 router.get('/categories', getCategories);

@@ -1,5 +1,5 @@
 import { useEffect,useState } from "react";
-import { Box, Typography, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, IconButton, Card, Chip ,Select, MenuItem } from "@mui/material";
+import { Box, Typography, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, IconButton, Card, Chip ,Select, MenuItem, CircularProgress } from "@mui/material";
 import Autocomplete from '@mui/material/Autocomplete';
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import DvrOutlinedIcon from "@mui/icons-material/DvrOutlined";
@@ -9,9 +9,10 @@ import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import CloseIcon from "@mui/icons-material/Close";
 import VerticalAlignBottomIcon from '@mui/icons-material/VerticalAlignBottom';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { MdDragIndicator } from "react-icons/md";
 import { FiTrash2 } from "react-icons/fi";
+import axios from "axios";
 
 import image from "../assets/bannariammanheader.png";
 import VenueTable from "../components/venue";
@@ -36,9 +37,29 @@ const Submit = () => {
   );
 };
 
-export default function Cmeeting({ onBack,selectedMeeting }) {
+export default function Cmeeting({ onBack }) {
   const navigate = useNavigate();
-  const [isPreview, setIsPreview] = useState(false); // Add this state
+  const location = useLocation();
+  const [isPreview, setIsPreview] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [selectedMeeting, setSelectedMeeting] = useState("");
+  const [meetingDescription, setMeetingDescription] = useState("");
+
+  // Get the selected template from navigation state if available
+  useEffect(() => {
+    const templateData = location.state?.selectedTemplate;
+    if (templateData) {
+      if (typeof templateData === 'string') {
+        setSelectedMeeting(templateData);
+      } else if (templateData.backendId) {
+        // If we have a backend ID, fetch the complete template data
+        fetchTemplateDetails(templateData.backendId);
+      } else if (templateData.name) {
+        // If we just have the name, use that
+        setSelectedMeeting(templateData.name);
+      }
+    }
+  }, [location.state]);
 
   const handleBack = () => {
     navigate('/dashboardrightpanel');
@@ -50,11 +71,79 @@ export default function Cmeeting({ onBack,selectedMeeting }) {
 
   // Card 
   const [openSubmitCard, setOpenSubmitCard] = useState(false);
-  const handleInitiateMeeting = () => {
-    setOpenSubmitCard(true);
-    setTimeout(() => {
-      navigate('/dashboardrightpanel');
-    }, 3000);
+  const handleInitiateMeeting = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.error('No authentication token found');
+        return;
+      }
+
+      // Get template ID if available
+      const templateId = location.state?.selectedTemplate?.backendId || 
+                        location.state?.selectedTemplate?.id || 
+                        null;
+
+      // Use current date for default timings with proper formatting
+      const now = new Date();
+      const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000);
+      
+      // Format dates in a way that's most likely to be accepted
+      const formatDate = (date) => {
+        return date.toISOString().split('.')[0];  // Remove milliseconds
+      };
+
+      // Create a minimal payload with only required fields
+      const minimalData = {
+        name: selectedMeeting || "Untitled Meeting",
+        templateId: templateId,
+        start_time: formatDate(now),
+        end_time: formatDate(oneHourLater)
+      };
+
+      console.log('Sending minimal meeting data:', JSON.stringify(minimalData, null, 2));
+
+      // First try with minimal data to test if it works
+      const response = await axios.post(
+        'http://localhost:5000/api/meetings/create', 
+        minimalData,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      console.log('Meeting created successfully:', response.data);
+      
+      // Show success message and redirect
+      setOpenSubmitCard(true);
+      setTimeout(() => {
+        navigate('/dashboardrightpanel');
+      }, 3000);
+    } catch (error) {
+      console.error('Error creating meeting:', error);
+      
+      // Enhanced error logging
+      if (error.response) {
+        console.error('Server error details:', error.response.data);
+        console.error('Status code:', error.response.status);
+        console.error('Headers:', error.response.headers);
+        
+        // Show error message to user
+        alert(`Failed to create meeting: ${error.response.data.message || 'Server error'}`);
+      } else if (error.request) {
+        console.error('No response received:', error.request);
+        alert('Failed to create meeting: No response from server');
+      } else {
+        console.error('Error message:', error.message);
+        alert(`Failed to create meeting: ${error.message}`);
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Priority 
@@ -144,41 +233,15 @@ export default function Cmeeting({ onBack,selectedMeeting }) {
           )}
           renderTags={(value, getTagProps) =>
             value.map((member, memberIndex) => (
-              <Box
+              <Chip
+                {...getTagProps({ index: memberIndex })}
                 key={member.id}
-                sx={{ 
-                  display: "flex", 
-                  alignItems: "center", 
-                  borderRadius: "20px",
-                  bgcolor: "#f0f8ff", 
-                  padding: "6px 12px",
-                  width: "fit-content" 
-                }}
-              >
-                <Typography sx={{ color: "#175CD3", fontSize: "12px" }}>
-                  {member.name} | {member.role}
-                </Typography>
-                <IconButton
-                  sx={{
-                    border: "2px solid #FB3748",
-                    borderRadius: "50%",
-                    p: "2px",
-                    marginLeft: "5px",
-                    "&:hover": { backgroundColor: "transparent" },
-                  }}
-                  {...getTagProps({ index: memberIndex })}
-                  onClick={() => {
-                    const newMembers = role.members.filter((_, i) => i !== memberIndex);
-                    handleMemberChange(index, newMembers);
-                  }}
-                  disabled={isPreview} // Disable in preview mode
-                >
-                  <CloseIcon sx={{ fontSize: "8px", color: "#FB3748" }} />
-                </IconButton>
-              </Box>
+                label={`${member.name}`}
+                sx={styles.memberSelection.chip}
+                disabled={isPreview}
+              />
             ))
           }
-          
           renderOption={(props, option, { selected }) => (
             <li
               {...props}
@@ -303,35 +366,60 @@ export default function Cmeeting({ onBack,selectedMeeting }) {
     setDiscussionPoints(newPoints);
   };
 
-  const allMembers = [
-    { id: 1, name: 'Dr. Rajesh Kumar', role: 'HOD', department: 'CSE' },
-    { id: 2, name: 'Dr. Priya Sharma', role: 'Professor', department: 'IT' },
-    { id: 3, name: 'Dr. Anand Singh', role: 'Dean', department: 'ECE' },
-    { id: 4, name: 'Dr. Mary Johnson', role: 'HOD', department: 'MECH' },
-    { id: 5, name: 'Dr. David Wilson', role: 'Principal', department: 'ADMIN' },
-  ];
+  const [allMembers, setAllMembers] = useState([]);
+  
+  useEffect(() => {
+    const fetchMembers = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          console.error('No authentication token found');
+          return;
+        }
+        
+        const response = await axios.get('http://localhost:5000/api/templates/users', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.data) {
+          setAllMembers(response.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch members:', error);
+        // Fallback to sample data if API fetch fails
+        setAllMembers([
+          { id: 1, name: 'Dr. Rajesh Kumar', role: 'HOD', department: 'CSE' },
+          { id: 2, name: 'Dr. Priya Sharma', role: 'Professor', department: 'IT' },
+          { id: 3, name: 'Dr. Anand Singh', role: 'Dean', department: 'ECE' },
+          { id: 4, name: 'Dr. Mary Johnson', role: 'HOD', department: 'MECH' },
+          { id: 5, name: 'Dr. David Wilson', role: 'Principal', department: 'ADMIN' },
+        ]);
+      }
+    };
+
+    fetchMembers();
+  }, []);
 
   const styles = {
     memberSelection: {
       chip: {
         margin: '2px',
-        backgroundColor: '#e8f4ff',
+        backgroundColor: '#EBF5FF',
         color: '#1967D2',
-        borderRadius: '20px',
-        border: '1px solid #bfdbfe',
-        '& .MuiChip-label': {
-          fontSize: '13px',
-          fontWeight: 500,
-        },
+        borderRadius: '16px',
+        padding: '2px 4px',
+        border: '1px solid #D1E9FF',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
         '& .MuiChip-deleteIcon': {
-          color: '#FC7A85',
-          transition: 'all 0.2s ease',
+          color: '#1967D2',
           '&:hover': {
-            color: '#EF4444'
+            color: '#DC2626'
           }
         },
         '&:hover': {
-          backgroundColor: '#d1e9ff'
+          backgroundColor: '#D1E9FF'
         }
       },
       autocomplete: {
@@ -379,39 +467,16 @@ export default function Cmeeting({ onBack,selectedMeeting }) {
   const memberSelectionCellSimple = (index) => (
     <TableCell sx={cellStyle}>
       {discussionPoints[index].responsibility?.length > 0 ? (
-        <Box
-          sx={{ 
-            display: "flex", 
-            alignItems: "center", 
-            justifyContent: "center", // Center the text
-            borderRadius: "20px",
-            bgcolor: "#f0f8ff", 
-            padding: "6px 12px",
-            width: "100%", // Ensure the box takes full width
-            textAlign: "center" // Center the text inside the box
+        <Chip
+          label={discussionPoints[index].responsibility[0].name}
+          sx={styles.memberSelection.chip}
+          onDelete={() => {
+            const updatedPoints = [...discussionPoints];
+            updatedPoints[index].responsibility = [];
+            setDiscussionPoints(updatedPoints);
           }}
-        >
-          <Typography sx={{ color: "#175CD3", fontSize: "12px" }}>
-            {discussionPoints[index].responsibility[0].name}
-          </Typography>
-          <IconButton
-            sx={{
-              border: "2px solid #FB3748",
-              borderRadius: "50%",
-              p: "2px",
-              marginLeft: "5px",
-              "&:hover": { backgroundColor: "transparent" },
-            }}
-            onClick={() => {
-              const updatedPoints = [...discussionPoints];
-              updatedPoints[index].responsibility = [];
-              setDiscussionPoints(updatedPoints);
-            }}
-            disabled={isPreview} // Disable in preview mode
-          >
-            <CloseIcon sx={{ fontSize: "8px", color: "#FB3748" }} />
-          </IconButton>
-        </Box>
+          disabled={isPreview}
+        />
       ) : (
         <Autocomplete
           value={discussionPoints[index].responsibility?.[0] || null}
@@ -432,10 +497,28 @@ export default function Cmeeting({ onBack,selectedMeeting }) {
               disabled={isPreview} // Disable in preview mode
             />
           )}
+          renderOption={(props, option, { selected }) => (
+            <li
+              {...props}
+              style={{
+                ...props.style,
+                backgroundColor: selected ? '#e8f4ff' : 'transparent',
+              }}
+            >
+              <Box sx={styles.memberSelection.option}>
+                <Typography sx={{ fontWeight: 500 }}>{option.name}</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {option.role} • {option.department}
+                </Typography>
+              </Box>
+            </li>
+          )}
           filterOptions={(options, { inputValue }) => {
             const searchTerm = inputValue.toLowerCase();
             return options.filter(option => 
-              option.name.toLowerCase().includes(searchTerm)
+              option.name.toLowerCase().includes(searchTerm) ||
+              option.role.toLowerCase().includes(searchTerm) ||
+              option.department.toLowerCase().includes(searchTerm)
             );
           }}
           sx={{ flex: 1 }}
@@ -444,6 +527,97 @@ export default function Cmeeting({ onBack,selectedMeeting }) {
       )}
     </TableCell>
   );
+
+  useEffect(() => {
+    // Fetch template details if a valid template was selected
+    if (selectedMeeting && selectedMeeting.backendId) {
+      fetchTemplateDetails(selectedMeeting.backendId);
+    } else if (selectedMeeting && typeof selectedMeeting === 'string') {
+      // If only the name was passed, set it as the title
+      setSelectedMeeting(selectedMeeting);
+    }
+  }, [selectedMeeting]);
+
+  const fetchTemplateDetails = async (backendId) => {
+    if (!backendId) return;
+    
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.error('No authentication token found');
+        return;
+      }
+
+      const response = await axios.get(`http://localhost:5000/api/templates/${backendId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.data) {
+        const template = response.data;
+        
+        // Set meeting name/title
+        if (template.name) {
+          setSelectedMeeting(template.name);
+        }
+        
+        // Set meeting description
+        if (template.description) {
+          setMeetingDescription(template.description);
+        }
+        
+        // Set priority
+        if (template.priority_type) {
+          setPriorityType(template.priority_type);
+        }
+        
+        // Set repeat value
+        if (template.repeat_type) {
+          setRepeatValue(template.repeat_type);
+        }
+        
+        // Set discussion points
+        if (template.points && Array.isArray(template.points)) {
+          const formattedPoints = template.points.map((point, index) => ({
+            id: String(index + 1).padStart(2, '0'),
+            point: point.point || ''
+          }));
+          setDiscussionPoints(formattedPoints);
+        }
+
+        // Set roles
+        if (template.roles && Array.isArray(template.roles)) {
+          const formattedRoles = template.roles.map(role => {
+            const memberObjects = role.members.map(member => {
+              // If member is already an object
+              if (member.id && member.name) {
+                return member;
+              }
+              
+              // Otherwise, try to find the member in our local array by ID
+              const localMember = allMembers.find(m => m.id === member);
+              return localMember || { id: member, name: `Unknown (${member})`, role: 'User' };
+            });
+
+            return {
+              role: role.role || '',
+              members: memberObjects
+            };
+          });
+          
+          if (formattedRoles.length > 0) {
+            setRoles(formattedRoles);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching template details:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
       <Box>
@@ -523,502 +697,530 @@ export default function Cmeeting({ onBack,selectedMeeting }) {
         <Box sx={{ display: "flex", backgroundColor: "white", justifyContent: "center", alignItems: "center", flexDirection: 'column', width: "90%", margin: "0 auto" , paddingX:'40px' }}>
           <img src={image} alt="Example" style={{ width: "50%", height: "50%", padding: "10px" }} />
 
-          {/* First Part */}
-          <TableContainer sx={{ margin: "auto", mt: 3, border: "1px solid #ddd",borderBottom:'none' }}>
-            <Table sx={{ borderCollapse: "collapse" }}>
-              <TableBody>
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '300px' }}>
+              <CircularProgress />
+              <Typography sx={{ ml: 2 }}>Loading template details...</Typography>
+            </Box>
+          ) : (
+            <>
+              {/* First Part */}
+              <TableContainer sx={{ margin: "auto", mt: 3, border: "1px solid #ddd",borderBottom:'none' }}>
+                <Table sx={{ borderCollapse: "collapse" }}>
+                  <TableBody>
 
-                {/* Meeting Details */}
-                <TableRow>
-                  <TableCell sx={cellStyle}>Name of the Meeting</TableCell>
-                  <TableCell sx={cellStyle}>
-                    <TextField 
-                      variant="standard" 
-                      placeholder="Ex..8th BoS Meeting"
-                      fullWidth
-                      value={selectedMeeting}
-                      InputProps={{ disableUnderline: true, style: { fontStyle: 'italic' } }} 
-                      onChange={(e) => setSelectedMeeting(e.target.value)}
-                      disabled={isPreview}
-                    />
-                  </TableCell>
-                  
-                  <TableCell sx={{...cellStyle,backgroundColor:'#E7E7E7',color:'#777'}}>Reference Number</TableCell>
-                  <TableCell sx={{...cellStyle,backgroundColor:'#E7E7E7'}}>
-                    <TextField 
-                      variant="standard" 
-                      placeholder="Auto generate" 
-                      fullWidth 
-                      InputProps={{ 
-                        disableUnderline: true,
-                        sx: { fontStyle: 'italic', color: '#777' }
-                      }}
-                      disabled={true}
-
-                    />
-                  </TableCell>
-                  
-                </TableRow>
-
-                <TableRow>
-                  <TableCell sx={cellStyle}>Meeting Description</TableCell>
-                  <TableCell colSpan={3} sx={{ ...cellStyle }}>
-                    <TextField
-                      variant="standard"
-                      multiline
-                      fullWidth
-                      placeholder="Ex..Lorem ipsum dolor sit amet consectetur. Arcu vel egestas rutrum in magna semper dolor sem. Bibendum tristique quisque facilisis cursus mus malesuada mattis et erat. Pellentesque sed congue tellus massa aliquam. Augue erat nunc mauris consectetur."
-                      rows={4}
-                      InputProps={{ 
-                        disableUnderline: true,
-                        sx: { fontStyle: 'italic', color: '#555' }
-                      }}
-                      disabled={isPreview} // Disable in preview mode
-                    />
-                  </TableCell>
-                </TableRow>
-
-                {/* Types */}
-                <TableRow>
-
-                  <TableCell sx={cellStyle}>Repeat Type</TableCell>
-                  <TableCell sx={{ position: "relative", ...cellStyle }}>
-                    {repeatValue ? (
-                      <Box
-                        sx={{ 
-                          display: "flex", 
-                          alignItems: "center", 
-                          borderRadius: "20px",
-                          bgcolor: "#f0f8ff", 
-                          padding: "6px 12px",
-                          width: "fit-content",
-                          minWidth: "10px" 
-                        }}
-                      >
-                        <Typography sx={{ color: "#175CD3", fontSize: "12px" }}>
-                          {repeatValue}
-                        </Typography>
-                        <IconButton
-                          sx={{ 
-                            border: "2px solid #FB3748", 
-                            borderRadius: "50%", 
-                            p: "2px",
-                            marginLeft: "5px", 
-                            "&:hover": { backgroundColor: "transparent" } 
-                          }}
-                          onClick={() => setRepeatValue("")}
-                        >
-                          <CloseIcon sx={{ fontSize: "8px", color: "#FB3748" }} />
-                        </IconButton>
-                      </Box>
-                    ) : (
-                      <TextField
-                        placeholder="Ex..Monthly"
-                        variant="standard"
-                        InputProps={{ disableUnderline: true, style: { fontStyle: 'italic' } }}
-                        value={repeatValue}
-                        onClick={() => setOpenRepeat(true)}
-                        disabled={isPreview} // Disable in preview mode
-                      />
-                    )}
-
-                    {openRepeat && (
-                      <Box
-                        sx={{
-                          position: "fixed",
-                          top: 0,
-                          left: 0,
-                          width: "100vw",
-                          height: "100vh",
-                          backgroundColor: "rgba(0, 0, 0, 0.5)",
-                          display: "flex",
-                          justifyContent: "center",
-                          alignItems: "center",
-                          zIndex: 5,
-                        }}
-                        onClick={() => setOpenRepeat(false)}
-                      >
-                        <Box
-                          sx={{
-                            backgroundColor: "white",
-                            padding: "16px",
-                            borderRadius: "8px",
-                            position: "relative",
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <RepeatOverlay
-                            onClose={() => setOpenRepeat(false)}
-                            onSave={(selectedOption) => {
-                              setRepeatValue(selectedOption);
-                              setOpenRepeat(false);
-                            }}
-                          />
-                        </Box>
-                      </Box>
-                    )}
-                  </TableCell>
-
-                  <TableCell sx={cellStyle}>Priority Type</TableCell>
-                  <TableCell sx={cellStyle}>
-                      <Select
-                        fullWidth
-                        variant="standard"
-                        value={priorityType}
-                        onChange={(e) => handleMeetingChange('priorityType', e.target.value)}
-                        sx={selectStyle}
-                        displayEmpty
-                        disabled={isPreview} // Disable in preview mode
-                      >
-                        <MenuItem disabled value="">
-                          <em>Select priority</em>
-                        </MenuItem>
-                        {priorityOptions.map((option) => (
-                          <MenuItem key={option.value} value={option.value}>
-                            {option.label}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                  </TableCell>
-
-                </TableRow>
-
-                {/* Details */}
-                <TableRow>
-
-                  <TableCell sx={cellStyle}>Venue Details</TableCell>
-                    <TableCell sx={{ position: "relative", ...cellStyle }}>
-                      {selectedVenue ? (
-                        <Box
-                          sx={{ 
-                            display: "flex", 
-                            alignItems: "center", 
-                            borderRadius: "20px",
-                            bgcolor: "#f0f8ff", 
-                            padding: "6px 12px",
-                            width: "fit-content" 
-                          }}
-                        >
-                          <Typography sx={{ color: "#175CD3", fontSize: "12px" }}>
-                            {selectedVenue.name}
-                          </Typography>
-                          <IconButton
-                            sx={{
-                              border: "2px solid #FB3748",
-                              borderRadius: "50%",
-                              p: "2px",
-                              marginLeft: "5px",
-                              "&:hover": { backgroundColor: "transparent" },
-                            }}
-                            onClick={() => setSelectedVenue(null)}
-                            disabled={isPreview} // Disable in preview mode
-                          >
-                            <CloseIcon sx={{ fontSize: "8px", color: "#FB3748" }} />
-                          </IconButton>
-                        </Box>
-                      ) : (
+                    {/* Meeting Details */}
+                    <TableRow>
+                      <TableCell sx={cellStyle}>Name of the Meeting</TableCell>
+                      <TableCell sx={cellStyle}>
                         <TextField 
                           variant="standard" 
-                          placeholder="Select venue" 
+                          placeholder="Ex..8th BoS Meeting"
+                          fullWidth
+                          value={selectedMeeting}
+                          InputProps={{ disableUnderline: true, style: { fontStyle: 'italic' } }} 
+                          onChange={(e) => setSelectedMeeting(e.target.value)}
+                          disabled={isPreview}
+                        />
+                      </TableCell>
+                      
+                      <TableCell sx={{...cellStyle,backgroundColor:'#E7E7E7',color:'#777'}}>Reference Number</TableCell>
+                      <TableCell sx={{...cellStyle,backgroundColor:'#E7E7E7'}}>
+                        <TextField 
+                          variant="standard" 
+                          placeholder="Auto generate" 
                           fullWidth 
                           InputProps={{ 
-                            disableUnderline: true, 
-                            style: { color: "#999", fontStyle: 'italic' } 
-                          }} 
-                          onClick={handleTextFieldClick}
-                          readOnly
-                          disabled={isPreview} // Disable in preview mode
+                            disableUnderline: true,
+                            sx: { fontStyle: 'italic', color: '#777' }
+                          }}
+                          disabled={true}
+
                         />
-                      )}
+                      </TableCell>
+                      
+                    </TableRow>
 
-                      {isVenueTableVisible && (
-                        <Box
-                          sx={{
-                            position: "fixed",
-                            top: 0,
-                            left: 0,
-                            width: "100vw",
-                            height: "100vh",
-                            backgroundColor: "rgba(0, 0, 0, 0.5)",
-                            display: "flex",
-                            justifyContent: "center",
-                            alignItems: "center",
-                            zIndex: 5,
-                          }}
-                          onClick={handleCloseVenueTable}
-                        >
-                          <Box
-                            onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside
-                          >
-                            <VenueTable onVenueSelect={handleVenueSelect} onClose={handleCloseVenueTable} />
-                          </Box>
-                        </Box>
-                      )}
-                    </TableCell>
-
-
-                  <TableCell sx={cellStyle}>Date & Time</TableCell>
-                    <TableCell sx={cellStyle}>
-                      <TextField
-                        variant="standard"
-                        placeholder="Select time"
-                        multiline
-                        InputProps={{ disableUnderline: true, style: { fontStyle: 'italic' } }}
-                        value={selectedDateTime}
-                        onClick={() => setOpenDatetime(true)}
-                        readOnly
-                        disabled={isPreview} // Disable in preview mode
-                      />
-                        {openDatetime && (
-                        <Box
-                          sx={{
-                            position: "fixed",
-                            top: 0,
-                            left: 0,
-                            width: "100vw",
-                            height: "100vh",
-                            bgcolor: "rgba(0, 0, 0, 0.5)",
-                            zIndex: 1300,
-                            display: "flex",
-                            justifyContent: "center",
-                            alignItems: "center",
-                          }}
-                          onClick={() => setOpenDatetime(false)}
-                        >
-                          <Box
-                            sx={{
-                              position: "relative",
-                              zIndex: 1301,
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <DateTimePicker onConfirm={handleConfirm} />
-                          </Box>
-                        </Box>
-                      )}
-                  </TableCell>
-
-                </TableRow>
-
-                {/* roles */}
-                <TableRow sx={{ backgroundColor: "#f0f0f0" }}>
-                  <TableCell sx={headerStyle}>Roles</TableCell>
-                  <TableCell colSpan={3} sx={headerStyle}>Member list</TableCell>
-                </TableRow>
-
-                {roles.map((role, index) => (
-                  <TableRow 
-                    key={index}
-                    draggable // Add this line
-                    onDragStart={() => handleRoleDragStart(index)}
-                    onDragOver={ handleDragOver }
-                    onDragEnter={() => handleDragEnter(index, 'role') }
-                    onDragLeave={ handleDragLeave}
-                    onDrop={ () => handleDrop(index, 'role') }
-                    sx={{
-                      '&:hover .actions': {
-                        opacity: 1
-                      },
-                      backgroundColor: dragOverItem === index ? '#f0f0f0' : 'transparent'
-                    }}
-                  >
-                    <TableCell sx={{...cellStyle, width: '20%'}}>
-                      <Box sx={rowContentStyle}>
-                        <span style={{ color: '#64748b', minWidth: '24px' }}>
-                          {getAlphabeticalIndex(index)}
-                        </span>
-                          <TextField 
-                            variant="standard" 
-                            placeholder="Enter title"
-                            fullWidth
-                            InputProps={{ 
-                              disableUnderline: true,
-                              style: { fontSize: '14px', fontWeight: 'bold', fontStyle: 'italic' }
-                            }}
-                            value={role.role}
-                            onChange={(e) => handleRoleChange(index, 'role', e.target.value)}
-                            disabled={isPreview} // Disable in preview mode
-                          />
-                      </Box>
-                    </TableCell>
-                    {memberSelectionCell(role, index)}
-                  </TableRow>
-                ))}
-                {!isPreview && (
-                  <TableRow>
-                    <TableCell colSpan={4} sx={{ border: 0, padding: 0 }}>
-                      <Box sx={{ display: "flex",justifyContent: "center",alignItems: "center",border: "2px dashed #1976d2",margin: "auto",padding: "8px",color: "#1976d2",cursor: "pointer"}}
-                        onClick={addNewRole}
-                      >
-                        <AddCircleOutlineIcon sx={{ marginRight: 1 }} />
-                        <Typography>Add Member</Typography>
-                      </Box>
-                    </TableCell>
-                  </TableRow>
-                )}
-
-              </TableBody>
-            </Table>
-          </TableContainer>
-
-          {/* Second Part */}
-          <TableContainer sx={{ margin: "auto", border: "1px solid #ddd", borderTop: "none" }}>
-            <Table sx={{ borderCollapse: "collapse" }}>
-
-              <TableHead>
-                  <TableRow>
-                    <TableCell width="5%" sx={headerCellStyle}>S.No</TableCell>
-                    <TableCell width="30%" sx={headerCellStyle}>Points to be Discussed</TableCell>
-                    <TableCell width="20%" sx={{...headerCellStyle}}>Todo</TableCell>
-                    <TableCell width="20%" sx={headerCellStyle}>Responsibility</TableCell>
-                    <TableCell width="20%" sx={headerCellStyle}>Deadline</TableCell>
-                  </TableRow>
-              </TableHead>
-
-              <TableBody>
-
-                {discussionPoints.map((item, index) => (
-                  <TableRow 
-                    key={item.id}
-                    draggable // Add this line
-                    onDragStart={() => handlePointDragStart(index)}
-                    onDragOver={handleDragOver}
-                    onDragEnter={() => handleDragEnter(index, 'point')}
-                    onDragLeave={handleDragLeave }
-                    onDrop={() => handleDrop(index, 'point')}
-                    sx={{
-                      '&:hover .actions': {
-                        opacity: 1
-                      },
-                      backgroundColor: dragOverItem === index ? '#f0f0f0' : 'transparent'
-                    }}
-                  >
-                    <TableCell sx={cellStyle}>{item.id}</TableCell>
-
-                    <TableCell sx={{ ...cellStyle, fontWeight: "normal", maxWidth: "300px" }}>
-                      <Box sx={rowContentStyle}>
+                    <TableRow>
+                      <TableCell sx={cellStyle}>Meeting Description</TableCell>
+                      <TableCell colSpan={3} sx={{ ...cellStyle }}>
                         <TextField
                           variant="standard"
-                          placeholder="Enter discussion topic"
                           multiline
                           fullWidth
-                          minRows={1}
-                          maxRows={4}
+                          placeholder="Ex..Lorem ipsum dolor sit amet consectetur. Arcu vel egestas rutrum in magna semper dolor sem. Bibendum tristique quisque facilisis cursus mus malesuada mattis et erat. Pellentesque sed congue tellus massa aliquam. Augue erat nunc mauris consectetur."
+                          rows={4}
+                          value={meetingDescription}
+                          onChange={(e) => setMeetingDescription(e.target.value)}
                           InputProps={{ 
                             disableUnderline: true,
-                            sx: { fontSize: '14px',fontWeight:'bold', fontStyle: 'italic'}
-                          }}
-                          value={item.point}
-                          onChange={(e) => {
-                            const updatedPoints = [...discussionPoints];
-                            updatedPoints[index].point = e.target.value;
-                            setDiscussionPoints(updatedPoints);
+                            sx: { fontStyle: 'italic', color: '#555' }
                           }}
                           disabled={isPreview} // Disable in preview mode
                         />
-                        {!isPreview && (
-                          <Box className="actions" sx={actionsWrapperStyle}>
-                            <Box component="span" sx={{...actionButtonStyle, cursor: 'grab'}} onMouseDown={() => handlePointDragStart(index)}>
-                              <MdDragIndicator size={18} />
-                            </Box>
-                            <Box 
-                              component="span" 
-                              sx={{
-                                ...actionButtonStyle,
-                                '&:hover': {
-                                  backgroundColor: '#FEE2E2',
-                                  color: '#DC2626'
-                                }
+                      </TableCell>
+                    </TableRow>
+
+                    {/* Types */}
+                    <TableRow>
+
+                      <TableCell sx={cellStyle}>Repeat Type</TableCell>
+                      <TableCell sx={{ position: "relative", ...cellStyle }}>
+                        {repeatValue ? (
+                          <Box
+                            sx={{ 
+                              display: "flex", 
+                              alignItems: "center", 
+                              borderRadius: "20px",
+                              bgcolor: "#f0f8ff", 
+                              padding: "6px 12px",
+                              width: "fit-content",
+                              minWidth: "10px" 
+                            }}
+                          >
+                            <Typography sx={{ color: "#175CD3", fontSize: "12px" }}>
+                              {repeatValue}
+                            </Typography>
+                            <IconButton
+                              sx={{ 
+                                border: "2px solid #FB3748", 
+                                borderRadius: "50%", 
+                                p: "2px",
+                                marginLeft: "5px", 
+                                "&:hover": { backgroundColor: "transparent" } 
                               }}
-                              onClick={() => deletePoint(index)}
+                              onClick={() => setRepeatValue("")}
                             >
-                              <FiTrash2 size={16} />
+                              <CloseIcon sx={{ fontSize: "8px", color: "#FB3748" }} />
+                            </IconButton>
+                          </Box>
+                        ) : (
+                          <TextField
+                            placeholder="Ex..Monthly"
+                            variant="standard"
+                            InputProps={{ disableUnderline: true, style: { fontStyle: 'italic' } }}
+                            value={repeatValue}
+                            onClick={() => setOpenRepeat(true)}
+                            disabled={isPreview} // Disable in preview mode
+                          />
+                        )}
+
+                        {openRepeat && (
+                          <Box
+                            sx={{
+                              position: "fixed",
+                              top: 0,
+                              left: 0,
+                              width: "100vw",
+                              height: "100vh",
+                              backgroundColor: "rgba(0, 0, 0, 0.5)",
+                              display: "flex",
+                              justifyContent: "center",
+                              alignItems: "center",
+                              zIndex: 5,
+                            }}
+                            onClick={() => setOpenRepeat(false)}
+                          >
+                            <Box
+                              sx={{
+                                backgroundColor: "white",
+                                padding: "16px",
+                                borderRadius: "8px",
+                                position: "relative",
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <RepeatOverlay
+                                onClose={() => setOpenRepeat(false)}
+                                onSave={(selectedOption) => {
+                                  setRepeatValue(selectedOption);
+                                  setOpenRepeat(false);
+                                }}
+                              />
                             </Box>
                           </Box>
                         )}
-                      </Box>
-                    </TableCell>
+                      </TableCell>
 
-                    <TableCell sx={{...cellStyle,backgroundColor:'#E7E7E7'}}>
-                      <TextField
-                        variant="standard"
-                        placeholder="Add remarks"
-                        fullWidth
-                        InputProps={{ disableUnderline: true, style: { fontStyle: 'italic' } }}
-                        value={item.todo || ""}
-                        onChange={(e) => {
-                          const updatedPoints = [...discussionPoints];
-                          updatedPoints[index].todo = e.target.value;
-                          setDiscussionPoints(updatedPoints);
-                        }}
-                        disabled={true}
-                      />
-                    </TableCell>
-                    
-                    {memberSelectionCellSimple(index)}
+                      <TableCell sx={cellStyle}>Priority Type</TableCell>
+                      <TableCell sx={cellStyle}>
+                          <Select
+                            fullWidth
+                            variant="standard"
+                            value={priorityType}
+                            onChange={(e) => handleMeetingChange('priorityType', e.target.value)}
+                            sx={selectStyle}
+                            displayEmpty
+                            disabled={isPreview} // Disable in preview mode
+                          >
+                            <MenuItem disabled value="">
+                              <em>Select priority</em>
+                            </MenuItem>
+                            {priorityOptions.map((option) => (
+                              <MenuItem key={option.value} value={option.value}>
+                                {option.label}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                      </TableCell>
 
-                    <TableCell sx={{ position: "relative", ...cellStyle }}>
-                      <TextField 
-                        variant="standard" 
-                        placeholder="Select Date" 
-                        fullWidth 
-                        InputProps={{ disableUnderline: true, style: { fontStyle: 'italic' } }} 
-                        value={selectedDate[index] || ""}
-                        onClick={() => setOpenDateIndex(index)}
-                        readOnly
-                        disabled={isPreview} // Disable in preview mode
-                      />
+                    </TableRow>
 
-                    {openDateIndex === index && (
-                      <Box
+                    {/* Details */}
+                    <TableRow>
+
+                      <TableCell sx={cellStyle}>Venue Details</TableCell>
+                        <TableCell sx={{ position: "relative", ...cellStyle }}>
+                          {selectedVenue ? (
+                            <Box
+                              sx={{ 
+                                display: "flex", 
+                                alignItems: "center", 
+                                borderRadius: "20px",
+                                bgcolor: "#f0f8ff", 
+                                padding: "6px 12px",
+                                width: "fit-content" 
+                              }}
+                            >
+                              <Typography sx={{ color: "#175CD3", fontSize: "12px" }}>
+                                {selectedVenue.name}
+                              </Typography>
+                              <IconButton
+                                sx={{
+                                  border: "2px solid #FB3748",
+                                  borderRadius: "50%",
+                                  p: "2px",
+                                  marginLeft: "5px",
+                                  "&:hover": { backgroundColor: "transparent" },
+                                }}
+                                onClick={() => setSelectedVenue(null)}
+                                disabled={isPreview} // Disable in preview mode
+                              >
+                                <CloseIcon sx={{ fontSize: "8px", color: "#FB3748" }} />
+                              </IconButton>
+                            </Box>
+                          ) : (
+                            <TextField 
+                              variant="standard" 
+                              placeholder="Select venue" 
+                              fullWidth 
+                              InputProps={{ 
+                                disableUnderline: true, 
+                                style: { color: "#999", fontStyle: 'italic' } 
+                              }} 
+                              onClick={handleTextFieldClick}
+                              readOnly
+                              disabled={isPreview} // Disable in preview mode
+                            />
+                          )}
+
+                          {isVenueTableVisible && (
+                            <Box
+                              sx={{
+                                position: "fixed",
+                                top: 0,
+                                left: 0,
+                                width: "100vw",
+                                height: "100vh",
+                                backgroundColor: "rgba(0, 0, 0, 0.5)",
+                                display: "flex",
+                                justifyContent: "center",
+                                alignItems: "center",
+                                zIndex: 5,
+                              }}
+                              onClick={handleCloseVenueTable}
+                            >
+                              <Box
+                                onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside
+                              >
+                                <VenueTable onVenueSelect={handleVenueSelect} onClose={handleCloseVenueTable} />
+                              </Box>
+                            </Box>
+                          )}
+                        </TableCell>
+
+
+                      <TableCell sx={cellStyle}>Date & Time</TableCell>
+                        <TableCell sx={cellStyle}>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <TextField
+                              variant="standard"
+                              placeholder="Select time"
+                              multiline
+                              fullWidth
+                              InputProps={{ disableUnderline: true, style: { fontStyle: 'italic' } }}
+                              value={selectedDateTime}
+                              onClick={() => setOpenDatetime(true)}
+                              readOnly
+                              disabled={isPreview}
+                            />
+                            {selectedDateTime && !isPreview && (
+                              <IconButton
+                                onClick={() => setSelectedDateTime("")}
+                                sx={{
+                                  border: "2px solid #FB3748",
+                                  borderRadius: "50%",
+                                  p: "2px",
+                                  marginLeft: "5px",
+                                  "&:hover": { backgroundColor: "transparent" },
+                                }}
+                              >
+                                <CloseIcon sx={{ fontSize: "8px", color: "#FB3748" }} />
+                              </IconButton>
+                            )}
+                          </Box>
+                            {openDatetime && (
+                            <Box
+                              sx={{
+                                position: "fixed",
+                                top: 0,
+                                left: 0,
+                                width: "100vw",
+                                height: "100vh",
+                                bgcolor: "rgba(0, 0, 0, 0.5)",
+                                zIndex: 1300,
+                                display: "flex",
+                                justifyContent: "center",
+                                alignItems: "center",
+                              }}
+                              onClick={() => setOpenDatetime(false)}
+                            >
+                              <Box
+                                sx={{
+                                  position: "relative",
+                                  zIndex: 1301,
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <DateTimePicker onConfirm={handleConfirm} />
+                              </Box>
+                            </Box>
+                          )}
+                      </TableCell>
+
+                    </TableRow>
+
+                    {/* roles */}
+                    <TableRow sx={{ backgroundColor: "#f0f0f0" }}>
+                      <TableCell sx={headerStyle}>Roles</TableCell>
+                      <TableCell colSpan={3} sx={headerStyle}>Member list</TableCell>
+                    </TableRow>
+
+                    {roles.map((role, index) => (
+                      <TableRow 
+                        key={index}
+                        draggable // Add this line
+                        onDragStart={() => handleRoleDragStart(index)}
+                        onDragOver={ handleDragOver }
+                        onDragEnter={() => handleDragEnter(index, 'role') }
+                        onDragLeave={ handleDragLeave}
+                        onDrop={ () => handleDrop(index, 'role') }
                         sx={{
-                          position: "fixed",
-                          top: 0,
-                          left: 0,
-                          width: "100vw",
-                          height: "100vh",
-                          backgroundColor: "rgba(0, 0, 0, 0.5)",
-                          zIndex: 5,
-                          display: "flex",
-                          justifyContent: "center",
-                          alignItems: "center",
+                          '&:hover .actions': {
+                            opacity: 1
+                          },
+                          backgroundColor: dragOverItem === index ? '#f0f0f0' : 'transparent'
                         }}
-                        onClick={() => setOpenDateIndex(null)}
                       >
-                        <Box
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <DatePick 
-                            onConfirm={(date) => handleDateConfirm(date, index)} 
-                            onClose={() => setOpenDateIndex(null)}
-                          />
-                        </Box>
-                      </Box>
+                        <TableCell sx={{...cellStyle, width: '20%'}}>
+                          <Box sx={rowContentStyle}>
+                            <span style={{ color: '#64748b', minWidth: '24px' }}>
+                              {getAlphabeticalIndex(index)}
+                            </span>
+                              <TextField 
+                                variant="standard" 
+                                placeholder="Enter title"
+                                fullWidth
+                                InputProps={{ 
+                                  disableUnderline: true,
+                                  style: { fontSize: '14px', fontWeight: 'bold', fontStyle: 'italic' }
+                                }}
+                                value={role.role}
+                                onChange={(e) => handleRoleChange(index, 'role', e.target.value)}
+                                disabled={isPreview} // Disable in preview mode
+                              />
+                          </Box>
+                        </TableCell>
+                        {memberSelectionCell(role, index)}
+                      </TableRow>
+                    ))}
+                    {!isPreview && (
+                      <TableRow>
+                        <TableCell colSpan={4} sx={{ border: 0, padding: 0 }}>
+                          <Box sx={{ display: "flex",justifyContent: "center",alignItems: "center",border: "2px dashed #1976d2",margin: "auto",padding: "8px",color: "#1976d2",cursor: "pointer"}}
+                            onClick={addNewRole}
+                          >
+                            <AddCircleOutlineIcon sx={{ marginRight: 1 }} />
+                            <Typography>Add Member</Typography>
+                          </Box>
+                        </TableCell>
+                      </TableRow>
                     )}
-                    </TableCell>
 
-                  </TableRow>
-                ))}
-                {!isPreview && (
-                  <TableRow>
-                    <TableCell colSpan={5} sx={{ border: 0, padding: 0 }}>
-                      <Box sx={{ display: "flex",justifyContent: "center",alignItems: "center",border: "2px dashed #1976d2",margin: "auto",padding: "8px",color: "#1976d2",cursor: "pointer"}}
-                        onClick={handleAddTopic}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+
+              {/* Second Part */}
+              <TableContainer sx={{ margin: "auto", border: "1px solid #ddd", borderTop: "none" }}>
+                <Table sx={{ borderCollapse: "collapse" }}>
+
+                  <TableHead>
+                      <TableRow>
+                        <TableCell width="5%" sx={headerCellStyle}>S.No</TableCell>
+                        <TableCell width="30%" sx={headerCellStyle}>Points to be Discussed</TableCell>
+                        <TableCell width="20%" sx={{...headerCellStyle}}>Todo</TableCell>
+                        <TableCell width="20%" sx={headerCellStyle}>Responsibility</TableCell>
+                        <TableCell width="20%" sx={headerCellStyle}>Deadline</TableCell>
+                      </TableRow>
+                  </TableHead>
+
+                  <TableBody>
+
+                    {discussionPoints.map((item, index) => (
+                      <TableRow 
+                        key={item.id}
+                        draggable // Add this line
+                        onDragStart={() => handlePointDragStart(index)}
+                        onDragOver={handleDragOver}
+                        onDragEnter={() => handleDragEnter(index, 'point')}
+                        onDragLeave={handleDragLeave }
+                        onDrop={() => handleDrop(index, 'point')}
+                        sx={{
+                          '&:hover .actions': {
+                            opacity: 1
+                          },
+                          backgroundColor: dragOverItem === index ? '#f0f0f0' : 'transparent'
+                        }}
                       >
-                        <AddCircleOutlineIcon sx={{ marginRight: 1 }} />
-                        <Typography>Add New Points</Typography>
-                      </Box>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
+                        <TableCell sx={cellStyle}>{item.id}</TableCell>
 
-            </Table>
-          </TableContainer>
-          
+                        <TableCell sx={{ ...cellStyle, fontWeight: "normal", maxWidth: "300px" }}>
+                          <Box sx={rowContentStyle}>
+                            <TextField
+                              variant="standard"
+                              placeholder="Enter discussion topic"
+                              multiline
+                              fullWidth
+                              minRows={1}
+                              maxRows={4}
+                              InputProps={{ 
+                                disableUnderline: true,
+                                sx: { fontSize: '14px',fontWeight:'bold', fontStyle: 'italic'}
+                              }}
+                              value={item.point}
+                              onChange={(e) => {
+                                const updatedPoints = [...discussionPoints];
+                                updatedPoints[index].point = e.target.value;
+                                setDiscussionPoints(updatedPoints);
+                              }}
+                              disabled={isPreview} // Disable in preview mode
+                            />
+                            {!isPreview && (
+                              <Box className="actions" sx={actionsWrapperStyle}>
+                                <Box component="span" sx={{...actionButtonStyle, cursor: 'grab'}} onMouseDown={() => handlePointDragStart(index)}>
+                                  <MdDragIndicator size={18} />
+                                </Box>
+                                <Box 
+                                  component="span" 
+                                  sx={{
+                                    ...actionButtonStyle,
+                                    '&:hover': {
+                                      backgroundColor: '#FEE2E2',
+                                      color: '#DC2626'
+                                    }
+                                  }}
+                                  onClick={() => deletePoint(index)}
+                                >
+                                  <FiTrash2 size={16} />
+                                </Box>
+                              </Box>
+                            )}
+                          </Box>
+                        </TableCell>
+
+                        <TableCell sx={{...cellStyle,backgroundColor:'#E7E7E7'}}>
+                          <TextField
+                            variant="standard"
+                            placeholder="Add remarks"
+                            fullWidth
+                            InputProps={{ disableUnderline: true, style: { fontStyle: 'italic' } }}
+                            value={item.todo || ""}
+                            onChange={(e) => {
+                              const updatedPoints = [...discussionPoints];
+                              updatedPoints[index].todo = e.target.value;
+                              setDiscussionPoints(updatedPoints);
+                            }}
+                            disabled={true}
+                          />
+                        </TableCell>
+                        
+                        {memberSelectionCellSimple(index)}
+
+                        <TableCell sx={{ position: "relative", ...cellStyle }}>
+                          <TextField 
+                            variant="standard" 
+                            placeholder="Select Date" 
+                            fullWidth 
+                            InputProps={{ disableUnderline: true, style: { fontStyle: 'italic' } }} 
+                            value={selectedDate[index] || ""}
+                            onClick={() => setOpenDateIndex(index)}
+                            readOnly
+                            disabled={isPreview} // Disable in preview mode
+                          />
+
+                        {openDateIndex === index && (
+                          <Box
+                            sx={{
+                              position: "fixed",
+                              top: 0,
+                              left: 0,
+                              width: "100vw",
+                              height: "100vh",
+                              backgroundColor: "rgba(0, 0, 0, 0.5)",
+                              zIndex: 5,
+                              display: "flex",
+                              justifyContent: "center",
+                              alignItems: "center",
+                            }}
+                            onClick={() => setOpenDateIndex(null)}
+                          >
+                            <Box
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <DatePick 
+                                onConfirm={(date) => handleDateConfirm(date, index)} 
+                                onClose={() => setOpenDateIndex(null)}
+                              />
+                            </Box>
+                          </Box>
+                        )}
+                        </TableCell>
+
+                      </TableRow>
+                    ))}
+                    {!isPreview && (
+                      <TableRow>
+                        <TableCell colSpan={5} sx={{ border: 0, padding: 0 }}>
+                          <Box sx={{ display: "flex",justifyContent: "center",alignItems: "center",border: "2px dashed #1976d2",margin: "auto",padding: "8px",color: "#1976d2",cursor: "pointer"}}
+                            onClick={handleAddTopic}
+                          >
+                            <AddCircleOutlineIcon sx={{ marginRight: 1 }} />
+                            <Typography>Add New Points</Typography>
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+
+                </Table>
+              </TableContainer>
+            </>
+          )}
+
         </Box>
 
-      </Box>
+        </Box>
   );
 }
 

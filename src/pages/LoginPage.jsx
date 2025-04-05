@@ -12,17 +12,24 @@ const LoginPage = ({ onLoginSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     setIsLoading(true);
-    axios.post('http://localhost:5000/api/meetings/login', { email, password })
-      .then((response) => {
-        console.log(response.data);
+    
+    try {
+      const response = await axios.post('http://localhost:5000/api/meetings/login', { email, password });
+      
+      if (response.data && response.data.token) {
+        localStorage.setItem('token', response.data.token);
         onLoginSuccess();
-      })
-      .catch((error) => {
-        console.error('Error logging in:', error);
-      })
+      } else {
+        console.error('Login failed: No token received');
+      }
+    } catch (error) {
+      console.error('Wrong email or password');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleShowPassword = () => {

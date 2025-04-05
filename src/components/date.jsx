@@ -1,9 +1,20 @@
 import React, { useState } from "react";
-import { Box, Button ,Typography ,IconButton } from "@mui/material";
-import { LocalizationProvider, DateCalendar } from "@mui/x-date-pickers";
+import { Box, Button, Typography, IconButton } from "@mui/material";
+import { LocalizationProvider, DateCalendar, PickersDay } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
 import { Close } from "@mui/icons-material";
+
+// Custom day component to make days more compact
+const CompactPickersDay = (props) => {
+  return <PickersDay {...props} sx={{ 
+    margin: '1px', 
+    fontSize: '0.75rem',
+    width: 32,
+    height: 32,
+    ...props.sx
+  }} />;
+};
 
 const DatePick = ({ onConfirm, onClose }) => {
     const [selectedDate, setSelectedDate] = useState(null);
@@ -32,7 +43,38 @@ const DatePick = ({ onConfirm, onClose }) => {
         </Box>
 
         <LocalizationProvider dateAdapter={AdapterDayjs}>
-          <DateCalendar value={selectedDate} onChange={(newDate) => setSelectedDate(newDate)} />
+          <DateCalendar 
+            value={selectedDate} 
+            onChange={(newDate) => setSelectedDate(newDate)} 
+            disablePast
+            slots={{
+              day: CompactPickersDay
+            }}
+            sx={{ 
+              width: "100%",
+              py: 0,
+              '& .MuiDayCalendar-header, & .MuiDayCalendar-weekContainer': {
+                margin: '2px 0',
+              },
+              '& .MuiPickersCalendarHeader-root': {
+                paddingLeft: 1,
+                paddingRight: 1,
+                marginTop: 0,
+                marginBottom: 0,
+                minHeight: 40,
+              },
+              '& .MuiPickersCalendarHeader-label': {
+                fontSize: '0.9rem',
+              },
+              '& .MuiPickersDay-root.Mui-selected': {
+                backgroundColor: "#1976d2",
+                color: 'white',
+              },
+              '& .MuiTypography-root': {
+                fontSize: '0.75rem'
+              }
+            }}
+          />
         </LocalizationProvider>
   
         <Box sx={{ display: "flex", justifyContent: "space-between", mt: 3 }}>
