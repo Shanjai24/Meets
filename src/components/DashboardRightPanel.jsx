@@ -4,7 +4,7 @@ import { format, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval, subDays
 import CreateMeeting from "../pages/CreateMeeting";
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
-import { Button, Typography } from "@mui/material";
+import { Button, Typography, useMediaQuery } from "@mui/material";
 import { renderDayView } from './Calendar';
 
 const generateTimeSlots = (meetings) => {
@@ -29,18 +29,25 @@ const generateTimeSlots = (meetings) => {
 
 const weekDays = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
-const DashboardRightPanel = () => {
+const DashboardRightPanel = ({ date, setDate, events }) => {
   const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showCreateMeeting, setShowCreateMeeting] = useState(false);
   const [meetings, setMeetings] = useState([]);
+  const isMobile = useMediaQuery('(max-width:768px)');
+  const isTablet = useMediaQuery('(max-width:992px)');
 
   useEffect(() => {
+    if (date) {
+      setSelectedDate(date.toDate());
+    }
+    
     const interval = setInterval(() => {
-      setSelectedDate(new Date());
+      setSelectedDate(prev => new Date());
     }, 60000);
+    
     return () => clearInterval(interval);
-  }, []);
+  }, [date]);
   
   const getCalendarDays = (date) => {
     const start = startOfMonth(date);
@@ -95,64 +102,107 @@ const DashboardRightPanel = () => {
         </div>
       )}
       
-      <div style={{ display: 'flex', flexDirection: 'column' , gap:'5px',marginTop:'16px'}}>
+      <div style={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        gap: '10px',
+        marginTop: '16px',
+        height: '100%'
+      }}>
         <div>
-            <button style={{
-              padding: '0.5rem',
-              backgroundColor: '#27ae60',
-              color: 'white',
-              border: 'none',
-              fontSize: '1rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              textAlign: 'center',
-              width:'100%',
-              borderRadius: '5px'
-            }} onClick={handleCreateMeetingClick}>
-              <AddCircleOutlineIcon/>
-              Create Meeting
-            </button>
+          <button style={{
+            padding: '0.5rem',
+            backgroundColor: '#27ae60',
+            color: 'white',
+            border: 'none',
+            fontSize: isMobile ? '0.9rem' : '1rem',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            textAlign: 'center',
+            width: '100%',
+            borderRadius: '5px'
+          }} onClick={handleCreateMeetingClick}>
+            <AddCircleOutlineIcon fontSize={isMobile ? "small" : "medium"}/>
+            Create Meeting
+          </button>
         </div>
         
-        <div style={{ flex: 1, backgroundColor: 'white', borderRadius: '0.5rem', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem'}}>
+        <div style={{ 
+          flex: 1, 
+          backgroundColor: 'white', 
+          borderRadius: '0.5rem', 
+          padding: isMobile ? '1rem' : '1.5rem', 
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: isMobile ? '1rem' : '1.5rem'
+        }}>
           <div style={{ backgroundColor: 'white', padding: '0.25rem', borderRadius: '0.25rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', color: 'black' }}>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 600, color: '#1a1a1a', margin: 0 }}>{format(selectedDate, 'MMM dd-yyyy')}</h2>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              marginBottom: '1rem', 
+              color: 'black',
+              flexDirection: isMobile ? 'column' : 'row',
+              gap: isMobile ? '0.5rem' : '0'
+            }}>
+              <h2 style={{ 
+                fontSize: isMobile ? '1.2rem' : '1.5rem', 
+                fontWeight: 600, 
+                color: '#1a1a1a', 
+                margin: 0 
+              }}>{format(selectedDate, 'MMM dd-yyyy')}</h2>
+              
               <Button
-                  onClick={handleViewMoreCalendar}
+                onClick={handleViewMoreCalendar}
+                sx={{
+                  textTransform: 'none',
+                  color: '#1A202C',
+                  padding: 0,
+                  gap: '5px',
+                  '&:hover': {
+                    backgroundColor: 'transparent',
+                    textDecoration: 'underline',
+                  },
+                }}
+              >
+                <CalendarMonthOutlinedIcon sx={{ fontSize: isMobile ? 16 : 20 }} />
+                <Typography
                   sx={{
-                    textTransform: 'none',
+                    fontStyle: 'italic',
+                    fontWeight: 500,
+                    fontSize: isMobile ? '14px' : '16px',
                     color: '#1A202C',
-                    padding: 0,
-                    gap: '5px',
-                    '&:hover': {
-                      backgroundColor: 'transparent',
-                      textDecoration: 'underline',
-                    },
                   }}
                 >
-                  <CalendarMonthOutlinedIcon sx={{ fontSize: 20 }} />
-                  <Typography
-                    sx={{
-                      fontStyle: 'italic',
-                      fontWeight: 500,
-                      fontSize: '16px',
-                      color: '#1A202C',
-                    }}
-                  >
-                    view all
-                  </Typography>
-                </Button>
-              </div>
+                  view all
+                </Typography>
+              </Button>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '0.5rem'}}>
+            
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(7, 1fr)', 
+              gap: isMobile ? '0.3rem' : '0.5rem'
+            }}>
               {weekDays.map(day => (
-                <div key={day} style={{ textAlign: 'center', fontWeight: 600, color: '#666', padding: '0.25rem', fontSize: '0.75rem' }}>{day}</div>
+                <div 
+                  key={day} 
+                  style={{ 
+                    textAlign: 'center', 
+                    fontWeight: 600, 
+                    color: '#666', 
+                    padding: '0.25rem', 
+                    fontSize: isMobile ? '0.65rem' : '0.75rem' 
+                  }}
+                >
+                  {day}
+                </div>
               ))}
+              
               {days.map(day => (
                 <div
                   key={day.toString()}
@@ -165,18 +215,30 @@ const DashboardRightPanel = () => {
                     cursor: 'pointer',
                     borderRadius: '50%',
                     position: 'relative',
-                    fontSize: '0.875rem',
+                    fontSize: isMobile ? '0.75rem' : '0.875rem',
                     color: isSameMonth(day, selectedDate) ? '#1a1a1a' : '#ccc',
-                    width: '30px',
-                    height: '30px',
+                    width: isMobile ? '25px' : '30px',
+                    height: isMobile ? '25px' : '30px',
                     margin: 'auto',
                     backgroundColor: isSameDay(day, selectedDate) ? '#4299e1' : 'transparent'
                   }}
-                  onClick={() => setSelectedDate(day)}
+                  onClick={() => {
+                    setSelectedDate(day);
+                    if (setDate) setDate(dayjs(day));
+                  }}
                 >
                   {format(day, 'd')}
                   {meetings.some(meeting => isSameDay(meeting.date, day)) && (
-                    <div style={{ width: '3px', height: '3px', backgroundColor: '#e1a942', borderRadius: '50%', position: 'absolute', bottom: '2px' }} />
+                    <div 
+                      style={{ 
+                        width: '3px', 
+                        height: '3px', 
+                        backgroundColor: '#e1a942', 
+                        borderRadius: '50%', 
+                        position: 'absolute', 
+                        bottom: '2px' 
+                      }} 
+                    />
                   )}
                 </div>
               ))}
@@ -184,26 +246,42 @@ const DashboardRightPanel = () => {
           </div>
 
           {/* Schedule Section */}
-            <h3 style={{ fontSize: '1.5rem', fontWeight: 600, color: '#1a1a1a', margin: '0 0 1rem 0' }}>Today's Schedule</h3>
-            <div style={{ position: 'relative', flex: 1, margin: '0 auto', padding: '0', overflowY: 'auto', border: '1px solid #e0e0e0', borderRadius: '8px', width: '100%', maxHeight: '300px', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-              {renderDayView(selectedDate, () => meetings)}
-              <div
-                style={{
-                  position: 'absolute',
-                  top: `${(new Date().getHours() * 60 + new Date().getMinutes()) / (24 * 60) * 100}%`,
-                  left: '75px',
-                  width: '10px',
-                  height: '10px',
-                  backgroundColor: 'green',
-                  borderRadius: '50%',
-                  zIndex: 1,
-                }}
-              />
-            </div>
-        </div>
+          <h3 style={{ 
+            fontSize: isMobile ? '1.2rem' : '1.5rem', 
+            fontWeight: 600, 
+            color: '#1a1a1a', 
+            margin: '0 0 1rem 0' 
+          }}>Today's Schedule</h3>
           
+          <div style={{ 
+            position: 'relative', 
+            flex: 1, 
+            margin: '0 auto', 
+            padding: '0', 
+            overflowY: 'auto', 
+            border: '1px solid #e0e0e0', 
+            borderRadius: '8px', 
+            width: '100%', 
+            maxHeight: isMobile ? '200px' : '300px', 
+            scrollbarWidth: 'none', 
+            msOverflowStyle: 'none' 
+          }}>
+            {renderDayView(selectedDate, () => meetings)}
+            <div
+              style={{
+                position: 'absolute',
+                top: `${(new Date().getHours() * 60 + new Date().getMinutes()) / (24 * 60) * 100}%`,
+                left: '75px',
+                width: '10px',
+                height: '10px',
+                backgroundColor: 'green',
+                borderRadius: '50%',
+                zIndex: 1,
+              }}
+            />
+          </div>
+        </div>
       </div>
-
     </>
   );
 };

@@ -54,6 +54,7 @@ const Dashboard = () => {
   const [activeTab, setActiveTab] = useState("Todo");
   const [date, setDate] = useState(dayjs());
   const [meetings, setMeetings] = useState([]);
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -61,6 +62,12 @@ const Dashboard = () => {
     setTimeout(() => {
       setMeetings(dummyMeetings);
     }, 1000);
+    
+    // Add window resize listener
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const tabs = ["Todo", "Scheduled", "Draft"];
@@ -110,7 +117,7 @@ const Dashboard = () => {
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`tab ${activeTab === tab ? "active-tab" : ""}`}
-              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' , justifyContent:'center' }}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent:'center' }}
             >
               {tab === "Todo" && <i className="fi fi-rr-calendar"></i>}
               {tab === "Scheduled" && <i className="fi fi-rr-clock"></i>}
@@ -121,7 +128,14 @@ const Dashboard = () => {
         </div>
 
         {/* Search Bar */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' , marginBottom:'20px' }}>
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '8px', 
+          width: '100%', 
+          marginBottom:'20px',
+          flexDirection: windowWidth < 480 ? 'column' : 'row'
+        }}>
           {/* Search Bar */}
           <div style={{ position: 'relative', width: '100%' }}>
             <SearchIcon style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#6c757d' }} />
@@ -154,7 +168,7 @@ const Dashboard = () => {
               borderRadius: '6px',
               cursor: 'pointer',
               height: '36px',
-              minWidth: '120px',
+              minWidth: windowWidth < 480 ? '100%' : '120px',
               whiteSpace: 'nowrap'
             }}
           >
@@ -216,7 +230,9 @@ const Dashboard = () => {
       </div>
 
       {/* Right Panel */}
-      <DashboardRightPanel date={date} setDate={setDate} events={events} />
+      <div className="right-panel">
+        <DashboardRightPanel date={date} setDate={setDate} events={events} />
+      </div>
     </div>
   );
 };

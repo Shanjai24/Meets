@@ -2,28 +2,54 @@ html, body {
   height: fit-content;
   margin: 0;
   padding: 0;
-  background-color: #f8f9fa; /* Set background color for the entire page */
+  background-color: #f8f9fa;
 }
 
 .main-container {
   display: flex;
-  padding: 2rem;
-  background-color: #F5F9FF; /* Match the background color */
+  padding: 1.5rem 2rem;
+  background-color: #F5F9FF;
   gap: 2rem;
   font-family: Arial, sans-serif;
+  max-width: 1800px;
+  margin: 0 auto;
+  min-height: 100vh;
+  justify-content: center;
+  align-items: flex-start;
 }
+
 .main-container::-webkit-scrollbar {
-  display: none;  /* Chrome, Safari and Opera */
+  display: none;
 }
 
 /* Left Panel Styles */
 .left-panel {
-  flex: 2;
-  background-color: #F5F9FF; /* Set background color to white */
-  padding: 1rem;
+  flex: 1;
+  background-color: #F5F9FF;
+  padding: 1.5rem;
+  max-width: 1200px;
+  min-width: 300px;
+  overflow-y: auto;
+  height: calc(100vh - 3rem);
 }
+
+/* Right Panel Styles */
+.right-panel {
+  flex-shrink: 0;
+  width: 450px;
+  height: auto;
+  max-height: fit-content;
+  overflow: visible;
+  padding: 1rem;
+  position: sticky;
+  top: 1.5rem;
+  background-color: #F5F9FF;
+  display: flex;
+  flex-direction: column;
+}
+
 .left-panel::-webkit-scrollbar {
-  display: none;  /* Chrome, Safari and Opera */
+  display: none;
 }
 
 .tabs {
@@ -42,7 +68,7 @@ html, body {
 .tab {
   width: 50%;
   padding: 0.75rem 1rem;
-  background-color: white; /* Set background color to white when inactive */
+  background-color: white;
   border-radius: 0.375rem;
   border: none;
   cursor: pointer;
@@ -50,7 +76,7 @@ html, body {
   font-weight: 500;
   position: relative;
   transition: color 0.3s ease, background-color 0.3s ease, transform 0.3s ease;
-  text-align: center; /* Center the text */
+  text-align: center;
   z-index: 10;
 }
 
@@ -90,14 +116,14 @@ html, body {
 .meeting-card {
   background: white;
   border-radius: 1rem;
-  padding: 0.8rem; /* Reduced padding */
-  margin-bottom: 1rem; /* Reduced margin */
+  padding: 1rem;
+  margin-bottom: 1.25rem;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   cursor: pointer;
   transition: transform 0.2s;
-  width: 100%; /* Increased width */
-  font-size: 0.8rem; /* Reduced font size */
-  gap: 5px; /* Reduced gap */
+  width: 100%;
+  font-size: 0.9rem;
+  gap: 8px;
 }
 
 .meeting-card:hover {
@@ -256,5 +282,152 @@ html, body {
   font-size: 2rem;
   font-weight: bold;
   margin-top: 1rem;
+}
+
+/* Media Queries for Responsiveness */
+@media (max-width: 1800px) {
+  .main-container {
+    padding: 1.25rem 1.75rem;
+    gap: 1.5rem;
+  }
+  
+  .left-panel {
+    max-width: 1000px;
+    padding: 1.25rem;
+  }
+  
+  .right-panel {
+    width: 400px;
+  }
+  
+  .meeting-card {
+    padding: 0.9rem;
+    font-size: 0.85rem;
+    margin-bottom: 1.2rem;
+  }
+}
+
+@media (max-width: 1500px) {
+  .main-container {
+    padding: 1.25rem 1.5rem;
+    gap: 1.25rem;
+  }
+  
+  .left-panel {
+    max-width: 800px;
+  }
+  
+  .right-panel {
+    width: 380px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .main-container {
+    padding: 1rem;
+    gap: 1rem;
+  }
+  
+  .left-panel {
+    max-width: 650px;
+  }
+  
+  .right-panel {
+    width: 350px;
+  }
+}
+
+@media (max-width: 992px) {
+  .main-container {
+    gap: 0.75rem;
+  }
+  
+  .right-panel {
+    width: 300px;
+  }
+  
+  .meeting-card {
+    padding: 0.7rem;
+    font-size: 0.75rem;
+  }
+  
+  .meeting-title h3 {
+    font-size: 0.9rem;
+  }
+  
+  .priority-tag {
+    font-size: 0.8rem;
+    padding: 0.4rem 0.8rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .main-container {
+    flex-direction: column;
+    padding: 0.75rem;
+    align-items: stretch;
+  }
+  
+  .left-panel, .right-panel {
+    width: 100%;
+    flex: none;
+  }
+  
+  .left-panel {
+    height: auto;
+    max-height: none;
+    margin-bottom: 1rem;
+    overflow-y: visible;
+  }
+  
+  .right-panel {
+    position: static;
+    padding: 1rem;
+    margin-top: 1rem;
+    overflow: visible;
+  }
+  
+  .tabs {
+    margin-bottom: 1rem;
+  }
+  
+  .tab {
+    padding: 0.5rem;
+    font-size: 0.9rem;
+  }
+  
+  .no-todo-message {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .meeting-card {
+    padding: 0.6rem;
+    font-size: 0.7rem;
+  }
+  
+  .meeting-title h3 {
+    font-size: 0.85rem;
+  }
+  
+  .meeting-details {
+    flex-wrap: wrap;
+  }
+  
+  .meeting-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .priority-tag, .deadline-tag {
+    font-size: 0.75rem;
+    padding: 0.3rem 0.6rem;
+  }
+  
+  .right-panel {
+    padding: 0.75rem;
+  }
 }
 

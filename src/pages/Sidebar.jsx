@@ -30,6 +30,7 @@ const Sidebar = () => {
                     to="/dashboard"
                     className={({ isActive }) => `menu-item ${isActive ? "active" : ""}`}
                     end
+                    aria-label="Dashboard"
                 >
                     {({ isActive }) => (
                         <>
@@ -38,13 +39,13 @@ const Sidebar = () => {
                                 className={`icon ${isActive ? "active" : ""}`}
                                 style={{ color: isActive ? '#007bff' : '#46555F' }}
                             />
-                            <div className="tooltip">Dashboard</div>
                         </>
                     )}
                 </NavLink>
                 <NavLink 
                     to="/database" 
                     className={({ isActive }) => `menu-item ${isActive ? "active" : ""}`}
+                    aria-label="Database"
                 >
                     {({ isActive }) => (
                         <>
@@ -53,13 +54,13 @@ const Sidebar = () => {
                                 className={`icon ${isActive ? "active" : ""}`}
                                 style={{ color: isActive ? '#007bff' : '#46555F' }}
                             />
-                            <div className="tooltip">Database</div>
                         </>
                     )}
                 </NavLink>
                 <NavLink 
                     to="/reports" 
                     className={({ isActive }) => `menu-item ${isActive ? "active" : ""}`}
+                    aria-label="Reports"
                 >
                     {({ isActive }) => (
                         <>
@@ -68,7 +69,6 @@ const Sidebar = () => {
                                 className={`icon ${isActive ? "active" : ""}`}
                                 style={{ color: isActive ? '#007bff' : '#46555F' }}
                             />
-                            <div className="tooltip">Reports</div>
                         </>
                     )}
                 </NavLink>
@@ -79,6 +79,7 @@ const Sidebar = () => {
                 <NavLink 
                     to="/support" 
                     className={({ isActive }) => `menu-item ${isActive ? "active" : ""}`}
+                    aria-label="Support"
                 >
                     {({ isActive }) => (
                         <>
@@ -87,7 +88,6 @@ const Sidebar = () => {
                                 className={`icon ${isActive ? "active" : ""}`}
                                 style={{ color: isActive ? '#007bff' : '#46555F' }}
                             />
-                            <div className="tooltip">Support</div>
                         </>
                     )}
                 </NavLink>
@@ -97,19 +97,15 @@ const Sidebar = () => {
             <NavLink 
                 to="/logout" 
                 className="menu-item logout-button"
+                aria-label="Logout"
             >
                 <AiOutlineLogout size={24} className="icon" />
-                <div className="tooltip">Logout</div>
             </NavLink>
 
             {/* Profile Section */}
             <div className="sidebar-bottom">
                 <div className="menu-item profile-container">
                     <img src={ProfileImage} alt="Profile" className="profile-image" />
-                    <div className="tooltip profile-tooltip">
-                        <div className="profile-name">{userDetails.name}</div>
-                        <div className="profile-email">{userDetails.email}</div>
-                    </div>
                 </div>
             </div>
         </div>

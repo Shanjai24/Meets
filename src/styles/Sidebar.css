@@ -74,6 +74,7 @@
   box-sizing: border-box; /* Ensure box-sizing is applied */
 }
 
+
 .menu-item:hover,
 .menu-item.active {
   background: rgba(21, 101, 192, 0.1) !important; /* Hover and active background */
@@ -124,68 +125,6 @@
   z-index: 1;
 }
 
-/* Tooltip styles */
-.tooltip {
-  position: absolute;
-  background-color: #fff;
-  padding: 8px 12px;
-  border-radius: 6px;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
-  white-space: nowrap;
-  z-index: 1000;
-  font-size: 14px;
-  font-weight: 500;
-  color: #333;
-  top: 50%;
-  left: 100%;
-  transform: translate(10px, -50%);
-  transition: all 0.3s ease;
-  border-left: none;
-  border-right: 3px solid #007bff;
-  pointer-events: none;
-  opacity: 0;
-  visibility: hidden;
-  margin-left: 10px;
-}
-
-.tooltip::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: -6px;
-  transform: translateY(-50%);
-  border-width: 6px 6px 6px 0;
-  border-style: solid;
-  border-color: transparent #fff transparent transparent;
-}
-
-.menu-item:hover .tooltip {
-  opacity: 1;
-  visibility: visible;
-  transform: translate(5px, -50%);
-}
-
-.profile-tooltip {
-  width: auto;
-  min-width: 170px;
-  padding: 10px 14px;
-  transform: translate(10px, -50%);
-  left: 100%;
-}
-
-.menu-item:hover .profile-tooltip {
-  transform: translate(5px, -50%);
-}
-
-.profile-name {
-  font-weight: bold;
-  margin-bottom: 4px;
-}
-
-.profile-email {
-  font-size: 12px;
-  color: #666;
-}
 
 /* Logout Button */
 .logout-button {
@@ -200,10 +139,7 @@
   color: #FF0000 !important;
 }
 
-.logout-button .tooltip {
-  border-right: 3px solid #FF0000;
-  border-top: none;
-}
+
 
 /* Sidebar Bottom (Profile Section) */
 .sidebar-bottom {
@@ -229,3 +165,4 @@
   background: #FFB31F;
   border-radius: 99px;
 }
+
