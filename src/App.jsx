@@ -13,6 +13,7 @@ import Template1 from "./components/template1";
 import Reports from './pages/Reports'; 
 import Calendar from './components/Calendar';
 import Cmeeting from './components/template1';
+import MeetingReportView from './pages/MeetingReportView';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -50,6 +51,7 @@ function App() {
                   <Route path="/template1" element={<Template1 />} />
                   <Route path="/cmeeting" element={<Cmeeting />} />
                   <Route path="/reports" element={<Reports />} />
+                  <Route path="/reports/:id" element={<MeetingReportView />} />
                   <Route path="/support" element={<div>Support</div>} />
                   <Route path="/logout" element={<div>Logout</div>} />
                   <Route path="*" element={<Navigate to="/dashboard" replace />} />

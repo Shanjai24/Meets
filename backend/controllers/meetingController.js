@@ -321,29 +321,27 @@ const updateMeeting = async (req, res) => {
 };
 
 const getMeetingbyId = async (req, res) => {
-    const {
-        id
-    } = req.params;
-
+    const { id } = req.params;
     var accessUserId = req.user.userId;
 
-    // Get created_by user from meeting table
-    var [
-        [createdUserId]
-    ] = await db.query(
-        `SELECT created_by FROM meeting WHERE id = ?`,
-        [id]
-    );
-
-    // Authorization check
-    if (createdUserId.created_by !== accessUserId) {
-        return res.status(403).json({
-            success: false,
-            message: `Authorization is required`
-        });
-    }
-
     try {
+        // Check if user is either creator or member of the meeting
+        const [accessCheck] = await db.query(
+            `SELECT m.id, m.created_by 
+             FROM meeting m
+             LEFT JOIN meeting_members mm ON m.id = mm.meeting_id
+             WHERE m.id = ? AND (m.created_by = ? OR mm.user_id = ?)
+             LIMIT 1`,
+            [id, accessUserId, accessUserId]
+        );
+
+        if (accessCheck.length === 0) {
+            return res.status(403).json({
+                success: false,
+                message: `You do not have access to this meeting`
+            });
+        }
+
         // Fetch template with venue, category, and creator details
         var [meeting] = await db.query(`
             SELECT 
@@ -386,7 +384,7 @@ const getMeetingbyId = async (req, res) => {
         // Fetch roles and members using a JOIN
         const [roles] = await db.query(`
             SELECT 
-             mm.role,
+                mm.role,
                 u.id AS user_id,
                 u.name AS user_name,
                 mm.id AS m_user_id
@@ -397,12 +395,7 @@ const getMeetingbyId = async (req, res) => {
 
         // Group roles properly
         const rolesMap = {};
-        roles.forEach(({
-            role,
-            user_id,
-            user_name,
-            m_user_id
-        }) => {
+        roles.forEach(({ role, user_id, user_name, m_user_id }) => {
             if (!rolesMap[role]) rolesMap[role] = [];
             rolesMap[role].push({
                 id: user_id,

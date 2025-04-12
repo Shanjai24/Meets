@@ -5,10 +5,10 @@ const passport = require('./config/passport'); // Import from your config
 const cors = require('cors');
 const templateRoutes = require('./routes/templateRoutes');
 const meetingRoutes = require('./routes/meetingRoutes');
+const reportRoutes = require('./routes/reportRoutes');
 require('dotenv').config();
 
 const { initScheduler } = require('./scheduler/cronJob');
-
 
 const app = express();
 
@@ -36,6 +36,7 @@ const authRoutes = require('./routes/authRoutes');
 app.use('/auth', authRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/meetings', meetingRoutes);
+app.use('/api/reports', reportRoutes);
 
 app.use((err, req, res, next) => {
     console.error(err.stack);

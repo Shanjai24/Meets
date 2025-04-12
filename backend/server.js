@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const passport = require('passport');
 const authRoutes = require('./routes/authRoutes');
+const reportRoutes = require('./routes/reportRoutes');
 require('./config/passport'); // Add this line
 
 const app = express();
@@ -10,10 +11,10 @@ const PORT = process.env.PORT || 5000;
 
 // CORS first
 app.use(cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    origin: ['http://localhost:5173', 'http://localhost:5000'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
     exposedHeaders: ['set-cookie']
 }));
 
@@ -22,7 +23,7 @@ app.use(express.json());
 
 // Set Base URL
 app.use('/api', (req, res, next) => {
-    req.baseUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+    req.baseUrl = 'http://localhost:5173';
     next();
 });
 
@@ -31,6 +32,7 @@ app.use(passport.initialize());
 
 // Routes
 app.use('/auth', authRoutes); // Auth Routes
+app.use('/api/reports', reportRoutes); // Report Routes
 
 // OAuth Error Handling
 app.use('/auth/*', (err, req, res, next) => {
